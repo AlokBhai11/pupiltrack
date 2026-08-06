@@ -5,13 +5,13 @@ const studentAttendanceSchema = new mongoose.Schema(
   {
     tenantId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'Institute',
+      ref: 'institutes',
       required: true,
       index: true,
     },
     studentId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'Student',
+      ref: 'students',
       required: true,
       index: true,
     },
@@ -32,7 +32,7 @@ const studentAttendanceSchema = new mongoose.Schema(
     },
     markedBy: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
+      ref: 'users',
     },
     leaveApproved: {
       type: Boolean,
@@ -50,13 +50,13 @@ const teacherAttendanceSchema = new mongoose.Schema(
   {
     tenantId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'Institute',
+      ref: 'institutes',
       required: true,
       index: true,
     },
     teacherId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
+      ref: 'teachers',
       required: true,
       index: true,
     },
@@ -88,7 +88,7 @@ const teacherAttendanceSchema = new mongoose.Schema(
     },
     approvedBy: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
+      ref: 'users',
     },
   },
   {

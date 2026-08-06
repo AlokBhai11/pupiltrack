@@ -20,8 +20,22 @@ const userSchema = new mongoose.Schema({
     },
     role: {
         type: String,
-        enum: ["superadmin", "admin", "manager", "staff"],
+        enum: ["superadmin", "admin", "manager", "staff", "student", "teacher", "parent"],
         default: "admin",
+    },
+    // Only set when role === "teacher" — links this login account back to
+    // the Teacher record it represents (mirrors studentId below).
+    teacherId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "teachers",
+        default: null,
+    },
+    // Only set when role === "student" — links this login account back to
+    // the Student record it represents.
+    studentId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "students",
+        default: null,
     },
     institute: {
         type: mongoose.Schema.Types.ObjectId,

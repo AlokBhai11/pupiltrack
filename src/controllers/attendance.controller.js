@@ -33,13 +33,19 @@ exports.markStudentAttendance = async (req, res) => {
     }
 
     // Check if attendance already exists for this date
+    // NOTE: clone before mutating — attendanceDate itself is stored as the
+    // record's `date` further down, and Date#setHours mutates in place.
+    // Reusing the same object here previously left every new record's date
+    // holding 23:59:59.999 (end-of-day) instead of the intended value.
+    const dayStart = new Date(attendanceDate);
+    dayStart.setHours(0, 0, 0, 0);
+    const dayEnd = new Date(attendanceDate);
+    dayEnd.setHours(23, 59, 59, 999);
+
     const existingAttendance = await StudentAttendance.findOne({
       tenantId,
       studentId,
-      date: {
-        $gte: new Date(attendanceDate.setHours(0, 0, 0, 0)),
-        $lt: new Date(attendanceDate.setHours(23, 59, 59, 999)),
-      },
+      date: { $gte: dayStart, $lt: dayEnd },
     });
 
     let attendance;
@@ -106,7 +112,8 @@ exports.markStudentAttendance = async (req, res) => {
 exports.getStudentAttendance = async (req, res) => {
   try {
     const { tenantId } = req.user;
-    const { studentId, fromDate, toDate, status } = req.query;
+    const { studentId } = req.params;
+    const { fromDate, toDate, status } = req.query;
 
     if (!Validators.validateObjectId(studentId)) {
       return res.status(400).json({
@@ -165,7 +172,8 @@ exports.getStudentAttendance = async (req, res) => {
 exports.getClassAttendance = async (req, res) => {
   try {
     const { tenantId } = req.user;
-    const { className, date } = req.query;
+    const { className } = req.params;
+    const { date } = req.query;
 
     if (!className) {
       return res.status(400).json({
@@ -175,18 +183,19 @@ exports.getClassAttendance = async (req, res) => {
     }
 
     const attendanceDate = new Date(date || new Date());
+    const dayStart = new Date(attendanceDate);
+    dayStart.setHours(0, 0, 0, 0);
+    const dayEnd = new Date(attendanceDate);
+    dayEnd.setHours(23, 59, 59, 999);
 
     const records = await StudentAttendance.find({
       tenantId,
-      date: {
-        $gte: new Date(attendanceDate.setHours(0, 0, 0, 0)),
-        $lt: new Date(attendanceDate.setHours(23, 59, 59, 999)),
-      },
+      date: { $gte: dayStart, $lt: dayEnd },
     })
       .populate({
         path: 'studentId',
         match: { className },
-        select: 'firstName lastName rollNumber className',
+        select: 'firstName lastName rollNo className',
       })
       .populate('markedBy', 'firstName lastName')
       .lean();
@@ -248,13 +257,17 @@ exports.markTeacherAttendance = async (req, res) => {
       });
     }
 
+    // See markStudentAttendance for why attendanceDate must not be mutated
+    // in place before it's used as the stored `date` value below.
+    const dayStart = new Date(attendanceDate);
+    dayStart.setHours(0, 0, 0, 0);
+    const dayEnd = new Date(attendanceDate);
+    dayEnd.setHours(23, 59, 59, 999);
+
     const existingAttendance = await TeacherAttendance.findOne({
       tenantId,
       teacherId,
-      date: {
-        $gte: new Date(attendanceDate.setHours(0, 0, 0, 0)),
-        $lt: new Date(attendanceDate.setHours(23, 59, 59, 999)),
-      },
+      date: { $gte: dayStart, $lt: dayEnd },
     });
 
     let attendance;
@@ -331,7 +344,8 @@ exports.markTeacherAttendance = async (req, res) => {
 exports.getTeacherAttendance = async (req, res) => {
   try {
     const { tenantId } = req.user;
-    const { teacherId, fromDate, toDate } = req.query;
+    const { teacherId } = req.params;
+    const { fromDate, toDate } = req.query;
 
     if (!Validators.validateObjectId(teacherId)) {
       return res.status(400).json({

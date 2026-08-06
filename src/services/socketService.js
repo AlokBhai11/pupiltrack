@@ -10,7 +10,23 @@ class SocketService {
 
   setupMiddleware() {
     this.io.use((socket, next) => {
-      const token = socket.handshake.auth.token;
+      let token = socket.handshake.auth.token;
+
+      // The institute/student JWT lives in an httpOnly cookie, which
+      // client-side JS can never read to pass explicitly. Fall back to
+      // parsing it straight from the raw cookie header sent with the
+      // socket handshake (works as long as the client connects with
+      // withCredentials: true and CORS allows credentials).
+      if (!token) {
+        const cookieHeader = socket.handshake.headers.cookie || '';
+        const cookies = Object.fromEntries(
+          cookieHeader
+            .split(';')
+            .map((c) => c.trim().split('='))
+            .filter((pair) => pair.length === 2)
+        );
+        token = cookies.studentToken || cookies.token;
+      }
 
       if (!token) {
         return next(new Error('Authentication error'));
@@ -21,6 +37,7 @@ class SocketService {
         socket.userId = decoded.id;
         socket.tenantId = decoded.tenantId;
         socket.role = decoded.role;
+        socket.className = decoded.className || null;
         next();
       } catch (err) {
         next(new Error('Authentication error'));
@@ -41,6 +58,9 @@ class SocketService {
       // Join user's personal room for notifications
       socket.join(`user:${socket.userId}`);
       socket.join(`tenant:${socket.tenantId}`);
+      if (socket.role === 'student' && socket.className) {
+        socket.join(`class:${socket.tenantId}:${socket.className}`);
+      }
 
       // Handle custom events
       socket.on('disconnect', () => {
@@ -76,6 +96,11 @@ class SocketService {
       ...notification,
       __targetRole: role, // Client-side filtering
     });
+  }
+
+  // Send notification to all students of one class within a tenant
+  notifyClass(tenantId, className, notification) {
+    this.io.to(`class:${tenantId}:${className}`).emit('notification', notification);
   }
 
   // Broadcast real-time update

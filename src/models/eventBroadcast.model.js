@@ -4,7 +4,7 @@ const eventBroadcastSchema = new mongoose.Schema(
   {
     tenantId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'Institute',
+      ref: 'institutes',
       required: true,
       index: true,
     },
@@ -38,12 +38,12 @@ const eventBroadcastSchema = new mongoose.Schema(
     specificRecipients: [
       {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'User',
+        ref: 'users',
       },
     ],
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
+      ref: 'users',
       required: true,
     },
     scheduledFor: {
@@ -107,7 +107,7 @@ const notificationSchema = new mongoose.Schema(
   {
     tenantId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'Institute',
+      ref: 'institutes',
       required: true,
       index: true,
     },
@@ -119,7 +119,7 @@ const notificationSchema = new mongoose.Schema(
     },
     recipientId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
+      ref: 'users',
       required: true,
       index: true,
     },

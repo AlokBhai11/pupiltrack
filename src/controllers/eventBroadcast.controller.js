@@ -68,7 +68,7 @@ exports.createBroadcast = async (req, res) => {
 
     // If not scheduled, send immediately
     if (!scheduledFor) {
-      await sendBroadcast(broadcast._id, tenantId);
+      await sendBroadcast(broadcast._id, tenantId, req.app.get('socketService'));
     }
 
     // Log activity
@@ -99,7 +99,7 @@ exports.createBroadcast = async (req, res) => {
 };
 
 // Send broadcast to recipients
-const sendBroadcast = async (broadcastId, tenantId) => {
+const sendBroadcast = async (broadcastId, tenantId, socketService = null) => {
   try {
     const broadcast = await EventBroadcast.findById(broadcastId);
     if (!broadcast) return;
@@ -107,13 +107,13 @@ const sendBroadcast = async (broadcastId, tenantId) => {
     let recipients = [];
 
     if (broadcast.targetAudience === 'all') {
-      recipients = await User.find({ tenantId }, '_id').lean();
+      recipients = await User.find({ institute: tenantId }, '_id').lean();
     } else if (broadcast.targetAudience === 'students') {
-      recipients = await User.find({ tenantId, role: 'student' }, '_id').lean();
+      recipients = await User.find({ institute: tenantId, role: 'student' }, '_id').lean();
     } else if (broadcast.targetAudience === 'teachers') {
-      recipients = await User.find({ tenantId, role: 'teacher' }, '_id').lean();
+      recipients = await User.find({ institute: tenantId, role: 'teacher' }, '_id').lean();
     } else if (broadcast.targetAudience === 'parents') {
-      recipients = await User.find({ tenantId, role: 'parent' }, '_id').lean();
+      recipients = await User.find({ institute: tenantId, role: 'parent' }, '_id').lean();
     } else if (broadcast.targetAudience === 'specific') {
       recipients = broadcast.specificRecipients.map((id) => ({ _id: id }));
     }
@@ -128,6 +128,20 @@ const sendBroadcast = async (broadcastId, tenantId) => {
     }));
 
     await Notification.insertMany(notifications);
+
+    // Push instantly to whoever's online right now — previously this only
+    // wrote rows to the DB, so nobody saw anything until they refreshed.
+    if (socketService) {
+      recipients.forEach((recipient) => {
+        socketService.notifyUser(String(recipient._id), {
+          type: broadcast.type,
+          title: broadcast.title,
+          description: broadcast.description,
+          priority: broadcast.priority,
+          broadcastId: broadcast._id,
+        });
+      });
+    }
 
     // Update broadcast stats
     broadcast.isSent = true;

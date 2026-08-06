@@ -24,7 +24,17 @@ async function authUser(req, res, next) {
 
         // Verify token
         const decoded = jwt.verify(token, process.env.JWT_SECRET)
-        
+
+        // This middleware guards staff/admin routes only — a student-portal
+        // token must never be usable here, even though it's signed with the
+        // same secret.
+        if (decoded.role === "student") {
+            return res.status(403).json({
+                success: false,
+                message: "This session is not authorized for the institute panel"
+            })
+        }
+
         // Ensure tenant ID is present (multi-tenant enforcement)
         // Accept either tenantId or institute as tenant identifier
         const tenantId = decoded.tenantId || decoded.institute
@@ -44,6 +54,50 @@ async function authUser(req, res, next) {
         console.error("Auth error:", err.message)
         const statusCode = err.name === 'TokenExpiredError' ? 401 : 401
         return res.status(statusCode).json({
+            success: false,
+            message: err.name === 'TokenExpiredError' ? "Token expired" : "Invalid token"
+        })
+    }
+}
+
+// Guards the student-portal routes only. Mirrors authUser but requires the
+// token to belong to a student account — an institute staff token must never
+// be usable here either.
+async function authStudent(req, res, next) {
+    const token = req.cookies.studentToken
+
+    if (!token) {
+        return res.status(401).json({
+            success: false,
+            message: "Unauthorized - No token provided"
+        })
+    }
+
+    try {
+        const isBlacklisted = await tokenBlacklistModel.findOne({ token })
+        if (isBlacklisted) {
+            return res.status(401).json({
+                success: false,
+                message: "Token is invalid or expired"
+            })
+        }
+
+        const decoded = jwt.verify(token, process.env.JWT_SECRET)
+
+        if (decoded.role !== "student") {
+            return res.status(403).json({
+                success: false,
+                message: "This session is not authorized for the student portal"
+            })
+        }
+
+        req.studentUser = decoded
+        req.tenantId = decoded.tenantId
+
+        next()
+    } catch (err) {
+        console.error("Student auth error:", err.message)
+        return res.status(401).json({
             success: false,
             message: err.name === 'TokenExpiredError' ? "Token expired" : "Invalid token"
         })
@@ -108,6 +162,7 @@ function verifyTenantAccess(req, res, next) {
 module.exports = {
     authUser,
     authenticate: authUser,
+    authStudent,
     authorize,
     enforceMultiTenant,
     verifyTenantAccess,

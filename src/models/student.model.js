@@ -98,6 +98,15 @@ const studentSchema = new mongoose.Schema({
     type: String,
     trim: true,
   },
+  email: {
+    type: String,
+    trim: true,
+    lowercase: true,
+  },
+  phone: {
+    type: String,
+    trim: true,
+  },
   createdAt: {
     type: Date,
     default: Date.now,
